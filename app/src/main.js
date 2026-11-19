@@ -2,7 +2,7 @@
 // Photos are read on the user's own machine (FileReader / object URLs) and
 // never uploaded anywhere; the app makes zero network requests.
 
-import { renderCover, exportCover, panelShapes, panelAt } from "./cover.js";
+import { renderCover, exportCover, panelShapes, panelAt, LAYOUTS } from "./cover.js";
 
 const $ = (id) => document.getElementById(id);
 const preview = $("preview");
@@ -41,6 +41,26 @@ function renderState() {
     return { ...cfg, photo: cfg.photo == null ? null : (photos[cfg.photo] || {}).img || null };
   });
   renderCover(preview, w, h, { ...state, panels });
+  // Preview-only outline around the selected panel (never in the export):
+  // a dashed cyan stroke so it is obvious which panel the sliders edit.
+  const pctx = preview.getContext("2d");
+  const shapes = panelShapes(state.layout, w, h);
+  const shape = shapes[Math.min(state.selected, shapes.length - 1)];
+  if (shape) {
+    const s = w / 1080;
+    pctx.save();
+    pctx.setLineDash([14 * s, 10 * s]);
+    pctx.lineWidth = Math.max(3, 5 * s);
+    pctx.strokeStyle = "#2ee6ff";
+    pctx.shadowColor = "rgba(0,0,0,0.7)";
+    pctx.shadowBlur = 6 * s;
+    pctx.beginPath();
+    pctx.moveTo(shape.poly[0][0], shape.poly[0][1]);
+    for (let i = 1; i < shape.poly.length; i++) pctx.lineTo(shape.poly[i][0], shape.poly[i][1]);
+    pctx.closePath();
+    pctx.stroke();
+    pctx.restore();
+  }
 }
 
 function renderSoon() {
@@ -160,6 +180,31 @@ $("layoutSeg").addEventListener("click", (e) => {
   syncPanelControls();
   renderSoon();
 });
+
+// One-click "surprise me": a random layout + grade + title colour, so a new
+// look is one tap away instead of three separate picks.
+function syncLayoutButtons() {
+  for (const b of $("layoutSeg").querySelectorAll("button")) {
+    b.classList.toggle("on", b.dataset.layout === state.layout);
+  }
+}
+function shuffleLook() {
+  const layouts = Object.keys(LAYOUTS);
+  const grades = ["sunset", "neon", "dusk", "gold", "vice"];
+  const colors = ["sunset", "white", "neon", "gold"];
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  state.layout = pick(layouts);
+  state.grade = pick(grades);
+  state.titleColor = pick(colors);
+  $("gradeSelect").value = state.grade;
+  $("titleColor").value = state.titleColor;
+  ensurePanels();
+  syncPanelControls();
+  syncLayoutButtons();
+  renderSoon();
+  setStatus(`Shuffled: ${LAYOUTS[state.layout].name} · ${state.grade} grade.`);
+}
+$("shuffleBtn").addEventListener("click", shuffleLook);
 
 $("gradeSelect").addEventListener("change", (e) => { state.grade = e.target.value; renderSoon(); });
 $("titleInput").addEventListener("input", (e) => { state.title = e.target.value; renderSoon(); });

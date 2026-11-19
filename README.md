@@ -9,8 +9,8 @@ Turn your photos into bold multi-panel cover art in the style of GTA 6 posters �
 ## How it works
 
 1. **Add photos** from your machine (or try the bundled samples).
-2. **Pick a layout** — Diagonal 3, Split 2, Quad 4, or Poster — and a colour grade (Sunset, Neon Nights, Palm Dusk, Golden Hour).
-3. **Click a panel** on the live preview to select it, then crop and position its photo (zoom, X/Y, warmth) and choose which photo fills it.
+2. **Pick a layout** — Diagonal 3, Hero Strip, Split 2, Quad 4, or Poster — and a colour grade (Sunset, Neon Nights, Palm Dusk, Golden Hour, Vice). Or hit **Shuffle look** for a random combination.
+3. **Click a panel** on the live preview to select it (a dashed outline marks it), then crop and position its photo (zoom, X/Y, warmth) and choose which photo fills it.
 4. **Write your caption** — big title + subtitle, size and colour.
 5. **Export PNG** in 1080×1080, 1080×1350, or 1920×1080.
 
@@ -20,7 +20,7 @@ Everything runs offline: the app is static files under `app/`, served by any sta
 
 - `app/index.html` — the editor page
 - `app/style.css` — the editor UI
-- `app/src/cover.js` — the cover renderer (panels, grades, lettering, sun + skyline drawn in code)
+- `app/src/cover.js` — the cover renderer (panels, grades, lettering, retro sun + skyline + palms drawn in code)
 - `app/src/main.js` — editor wiring (photos, panels, controls, export)
 - `app/fonts/Anton-Regular.ttf` — Anton display font (SIL Open Font License, see `app/fonts/OFL.txt`)
 - `app/samples/` — two sample photos made with an image model, free to use

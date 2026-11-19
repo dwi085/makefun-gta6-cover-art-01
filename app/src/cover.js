@@ -5,6 +5,7 @@
 
 export const LAYOUTS = {
   diagonal3: { name: "Diagonal 3", panels: ["hero", "street", "night"] },
+  heroStrip: { name: "Hero Strip", panels: ["hero", "strip 1", "strip 2", "strip 3"] },
   split2: { name: "Split 2", panels: ["left", "right"] },
   quad4: { name: "Quad 4", panels: ["top-left", "top-right", "bottom-left", "bottom-right"] },
   poster: { name: "Poster", panels: ["full"] },
@@ -15,6 +16,16 @@ export function panelShapes(layout, W, H) {
   const x = (f) => f * W;
   const y = (f) => f * H;
   switch (layout) {
+    case "heroStrip":
+      // One big hero panel on top, then a strip of three small panels below.
+      // The hero's bottom edge slopes gently; each strip top follows that
+      // same line so the panels meet without gaps.
+      return [
+        { name: "Panel 1 — hero", poly: [[0, 0], [W, 0], [W, y(0.58)], [0, y(0.64)]] },
+        { name: "Panel 2 — strip 1", poly: [[0, y(0.64)], [x(0.36), y(0.618)], [x(0.31), H], [0, H]] },
+        { name: "Panel 3 — strip 2", poly: [[x(0.36), y(0.618)], [x(0.68), y(0.599)], [x(0.63), H], [x(0.31), H]] },
+        { name: "Panel 4 — strip 3", poly: [[x(0.68), y(0.599)], [W, y(0.58)], [W, H], [x(0.63), H]] },
+      ];
     case "split2":
       return [
         { name: "Panel 1 — left", poly: [[0, 0], [x(0.56), 0], [x(0.47), H], [0, H]] },
@@ -91,6 +102,10 @@ const GRADES = {
   gold: [
     ["overlay", [[0, "rgba(255,200,90,0.30)"], [1, "rgba(255,120,20,0.26)"]]],
     ["soft-light", [[0, "rgba(255,230,160,0.30)"], [1, "rgba(160,80,0,0.20)"]]],
+  ],
+  vice: [
+    ["overlay", [[0, "rgba(255,0,160,0.30)"], [0.5, "rgba(140,0,200,0.18)"], [1, "rgba(0,220,255,0.26)"]]],
+    ["multiply", [[0, "rgba(120,0,160,0.16)"], [1, "rgba(0,40,90,0.22)"]]],
   ],
 };
 
@@ -226,6 +241,51 @@ function drawSkyline(ctx, W, H) {
   ctx.restore();
 }
 
+// Palm tree silhouette, drawn in code: a leaning trunk and seven drooping
+// fronds. Two of these flanking the caption band are the Vice City shorthand.
+function drawPalm(ctx, x, baseY, h, lean) {
+  const crownX = x + lean * h;
+  const crownY = baseY - h;
+  ctx.save();
+  ctx.strokeStyle = "rgba(14,5,28,0.96)";
+  ctx.fillStyle = "rgba(14,5,28,0.96)";
+  ctx.lineCap = "round";
+  // Trunk: three tapering strokes along one curve so it narrows to the crown.
+  const segs = 3;
+  for (let s = 0; s < segs; s++) {
+    const t0 = s / segs, t1 = (s + 1) / segs;
+    const px0 = x + lean * h * t0 * t0, py0 = baseY - h * t0;
+    const px1 = x + lean * h * t1 * t1, py1 = baseY - h * t1;
+    ctx.lineWidth = Math.max(2.5, h * 0.055 * (1 - t0 * 0.55));
+    ctx.beginPath();
+    ctx.moveTo(px0, py0);
+    ctx.quadraticCurveTo(px0 + lean * h * 0.08, (py0 + py1) / 2, px1, py1);
+    ctx.stroke();
+  }
+  // Fronds: six thick arcs fanning out from the crown, bowing up first and
+  // then drooping at the tips — the droop is what reads as "palm", not a star.
+  ctx.lineWidth = Math.max(2.5, h * 0.032);
+  const fronds = 6;
+  for (let i = 0; i < fronds; i++) {
+    const a = ((-165 + (i / (fronds - 1)) * 150) * Math.PI) / 180;
+    const len = h * (0.44 + 0.18 * Math.sin((i / (fronds - 1)) * Math.PI));
+    const mx = crownX + Math.cos(a) * len * 0.5;
+    const my = crownY + Math.sin(a) * len * 0.5 - len * 0.14;
+    const ex = crownX + Math.cos(a) * len;
+    const ey = crownY + Math.sin(a) * len * 0.55 + len * 0.42;
+    ctx.beginPath();
+    ctx.moveTo(crownX, crownY);
+    ctx.quadraticCurveTo(mx, my, ex, ey);
+    ctx.stroke();
+  }
+  // Coconuts under the crown.
+  ctx.beginPath();
+  ctx.arc(crownX - h * 0.02, crownY + h * 0.03, h * 0.028, 0, Math.PI * 2);
+  ctx.arc(crownX + h * 0.035, crownY + h * 0.04, h * 0.024, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 let grainTile = null;
 function grainPattern(ctx) {
   if (grainTile) return grainTile;
@@ -306,11 +366,15 @@ function drawCaption(ctx, W, H, state) {
     ctx.lineWidth = Math.max(4, size * 0.07);
     ctx.strokeStyle = "#12081c";
     ctx.lineJoin = "round";
-    ctx.shadowColor = "rgba(255,46,136,0.65)";
-    ctx.shadowBlur = size * 0.22;
-    ctx.shadowOffsetY = size * 0.03;
-    ctx.strokeText(title, 0, 0);
+    // Retro hard offset: a solid copy of the title shifted down-right first,
+    // so the lettering pops off the photo like a poster. The offset colour
+    // contrasts the fill — cyan behind neon pink, hot pink behind the rest.
+    ctx.save();
     ctx.shadowColor = "transparent";
+    ctx.fillStyle = state.titleColor === "neon" ? "#2ee6ff" : "#ff2e88";
+    ctx.fillText(title, size * 0.045, size * 0.05);
+    ctx.restore();
+    ctx.strokeText(title, 0, 0);
     ctx.fillStyle = titleFill(ctx, W, H, state.titleColor);
     ctx.fillText(title, 0, 0);
     ctx.restore();
@@ -350,10 +414,39 @@ export function renderCover(canvas, W, H, state) {
 
   applyGrade(ctx, W, H, state.grade || "sunset");
 
-  // Retro sun straddling the top-centre seam, half-clipped by the top edge,
-  // so it never covers a face in a side panel.
-  const sunR = Math.round(Math.min(W, H) * 0.075);
-  drawRetroSun(ctx, W / 2, sunR * 0.72, sunR);
+  // Gentle vignette for depth before the graphic elements go on.
+  const vg = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.42, W / 2, H * 0.5, Math.max(W, H) * 0.72);
+  vg.addColorStop(0, "rgba(10,4,24,0)");
+  vg.addColorStop(1, "rgba(10,4,24,0.30)");
+  ctx.save();
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  // Retro sun, big and placed where a face rarely is. Wide hero layouts get
+  // the top-right corner (sky in most photos); split and quad layouts get
+  // the panel-seam centre, where four photo edges meet and no face sits.
+  // A corner sun crossed a face in the right panel of split2/quad4, and a
+  // seam sun crossed foreheads in diagonal3's lower panels — each layout
+  // keeps the anchor that proved clean for it.
+  const sunAnchors = {
+    diagonal3: [0.88, 0.12, 0.11],
+    heroStrip: [0.88, 0.12, 0.11],
+    split2: [0.5, 0.5, 0.12],
+    quad4: [0.5, 0.5, 0.11],
+    poster: [0.84, 0.16, 0.1],
+  };
+  const [sx, sy, sr] = sunAnchors[state.layout || "diagonal3"] || sunAnchors.diagonal3;
+  const sunR = Math.round(Math.min(W, H) * sr);
+  const sunGlow = ctx.createRadialGradient(W * sx, H * sy, 0, W * sx, H * sy, sunR * 2.4);
+  sunGlow.addColorStop(0, "rgba(255,120,60,0.42)");
+  sunGlow.addColorStop(1, "rgba(255,120,60,0)");
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  ctx.fillStyle = sunGlow;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  drawRetroSun(ctx, W * sx, H * sy, sunR);
 
   if (state.frames !== false) {
     ctx.save();
@@ -370,6 +463,12 @@ export function renderCover(canvas, W, H, state) {
   }
 
   drawSkyline(ctx, W, H);
+
+  // Palm silhouettes flanking the caption band, short enough to stay clear
+  // of the title and subtitle text.
+  drawPalm(ctx, W * 0.045, H * 1.005, H * 0.2, 0.3);
+  drawPalm(ctx, W * 0.955, H * 1.005, H * 0.22, -0.3);
+
   drawCaption(ctx, W, H, state);
 
   if (state.grain !== false) {
